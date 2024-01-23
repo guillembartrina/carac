@@ -75,7 +75,7 @@ class IRTreeGenerator(using val ctx: InterpreterContext)(using JITOptions) {
                 case PredicateType.GROUPING =>
                   val ga = k.atoms(i + 1).asInstanceOf[GroupingAtom]
                   val gji = k.groupingIndexes(ga.hash)
-                  val res = GroupingOp(q, gji)
+                  val res = GroupingOp(q, atoms.head.rId, k, gji)
                   res
                 case _ => q
             ):_*
@@ -126,7 +126,7 @@ class IRTreeGenerator(using val ctx: InterpreterContext)(using JITOptions) {
                     case PredicateType.GROUPING =>
                       val ga = k.atoms(i + 1).asInstanceOf[GroupingAtom]
                       val gji = k.groupingIndexes(ga.hash)
-                      val res = GroupingOp(q, gji)
+                      val res = GroupingOp(q, atoms.head.rId, k, gji)
                       res
                     case _ => q
                 }): _*

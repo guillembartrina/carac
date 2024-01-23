@@ -18,6 +18,7 @@ class VolcanoStorageManager(ns: NS = NS()) extends CollectionsStorageManager(ns)
   def joinProjectHelper_withHash(inputs: Seq[EDB], rId: Int, hash: String, onlineSort: Boolean): EDB = ???
 
   def groupingHelper(base: EDB, gji: GroupingJoinIndexes): EDB = ???
+  def groupingHelper_withHash(base: EDB, rId: Int, hash: String, ghash: String): EDB = ???
 
   /**
    * Use relational operators to evaluate an IDB rule using Naive algo

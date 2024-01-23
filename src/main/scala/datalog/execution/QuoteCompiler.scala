@@ -62,56 +62,6 @@ class QuoteCompiler(val storageManager: StorageManager)(using JITOptions) extend
     }
   }
 
-  given ToExpr[JoinIndexes] with {
-    def apply(x: JoinIndexes)(using Quotes) = {
-      '{
-        JoinIndexes(
-          ${ Expr(x.varIndexes) },
-          ${ Expr(x.constIndexes) },
-          ${ Expr(x.projIndexes) },
-          ${ Expr(x.deps) },
-          ${ Expr(x.atoms) },
-          ${ Expr(x.cxns) },
-          ${ Expr(x.edb) }
-        )
-      }
-    }
-  }
-
-  
-  given ToExpr[StorageAggOp] with {
-    def apply(x: StorageAggOp)(using Quotes) = {
-      x match
-        case StorageAggOp.SUM => '{ StorageAggOp.SUM }
-        case StorageAggOp.COUNT => '{ StorageAggOp.COUNT }
-        case StorageAggOp.MIN => '{ StorageAggOp.MIN }
-        case StorageAggOp.MAX => '{ StorageAggOp.MAX }
-    }
-  }
-
-  given ToExpr[AggOpIndex] with {
-    def apply(x: AggOpIndex)(using Quotes) = {
-      x match
-        case AggOpIndex.LV(i) => '{ AggOpIndex.LV(${ Expr(i) }) }
-        case AggOpIndex.GV(i) => '{ AggOpIndex.GV(${ Expr(i) }) }
-        case AggOpIndex.C(c) => '{ AggOpIndex.C(${ Expr(c) }) }
-      
-    }
-  }
-
-  given ToExpr[GroupingJoinIndexes] with {
-    def apply(x: GroupingJoinIndexes)(using Quotes) = {
-      '{
-        GroupingJoinIndexes(
-          ${ Expr(x.varIndexes) },
-          ${ Expr(x.constIndexes) },
-          ${ Expr(x.groupingIndexes) },
-          ${ Expr(x.aggOpInfos) }
-        )
-      }
-    }
-  }
-
   /**
    * Compiles a relational operator into a quote that returns an EDB. Future TODO: merge with compileIR when dotty supports.
    */
@@ -199,10 +149,10 @@ class QuoteCompiler(val storageManager: StorageManager)(using JITOptions) extend
         val clhs = compileIRRelOp(children.head)
         val crhs = compileIRRelOp(children(1))
         '{ $stagedSM.diff($clhs, $crhs) }
-
-      case GroupingOp(child, gji) =>
+      
+      case GroupingOp(child, rId, k, gji) =>
         val clh = compileIRRelOp(child)
-        '{ $stagedSM.groupingHelper($clh, ${ Expr(gji) }) }
+        '{ $stagedSM.groupingHelper_withHash($clh, ${ Expr(rId) }, ${ Expr(k.hash) }, ${ Expr(gji.hash) }) }
 
       case DebugPeek(prefix, msg, children: _*) =>
         val res = compileIRRelOp(children.head)

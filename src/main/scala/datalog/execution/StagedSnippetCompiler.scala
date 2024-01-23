@@ -1,6 +1,6 @@
 package datalog.execution
 
-import datalog.dsl.{Atom, Constant, Term, Variable}
+import datalog.dsl.{Atom, Constant, Term, Variable, GroupingAtom, AggOp}
 import datalog.execution.ir.*
 import datalog.storage.{DB, EDB, KNOWLEDGE, StorageManager, StorageAggOp}
 import datalog.tools.Debug.debug
@@ -72,6 +72,22 @@ class StagedSnippetCompiler(val storageManager: StorageManager)(using val jitOpt
     }
   }
 
+  given ToExpr[AggOp] with {
+    def apply(x: AggOp)(using Quotes) = {
+      x match
+        case AggOp.SUM(t) => '{ AggOp.SUM( ${ Expr(t) } ) }
+        case AggOp.COUNT(t) => '{ AggOp.COUNT( ${ Expr(t) } ) }
+        case AggOp.MIN(t) => '{ AggOp.MIN( ${ Expr(t) } ) }
+        case AggOp.MAX(t) => '{ AggOp.MAX( ${ Expr(t) } ) }
+      
+    }
+  }
+
+  given ToExpr[GroupingAtom] with {
+    def apply(x: GroupingAtom)(using Quotes) = {
+      '{ GroupingAtom( ${ Expr(x.gp) }, ${ Expr(x.gv) }, ${ Expr(x.ags) } ) }
+    }
+  }
 
   given ToExpr[StorageAggOp] with {
     def apply(x: StorageAggOp)(using Quotes) = {
@@ -83,16 +99,6 @@ class StagedSnippetCompiler(val storageManager: StorageManager)(using val jitOpt
     }
   }
 
-  given ToExpr[AggOpIndex] with {
-    def apply(x: AggOpIndex)(using Quotes) = {
-      x match
-        case AggOpIndex.LV(i) => '{ AggOpIndex.LV(${ Expr(i) }) }
-        case AggOpIndex.GV(i) => '{ AggOpIndex.GV(${ Expr(i) }) }
-        case AggOpIndex.C(c) => '{ AggOpIndex.C(${ Expr(c) }) }
-      
-    }
-  }
-
   given ToExpr[GroupingJoinIndexes] with {
     def apply(x: GroupingJoinIndexes)(using Quotes) = {
       '{
@@ -100,7 +106,8 @@ class StagedSnippetCompiler(val storageManager: StorageManager)(using val jitOpt
           ${ Expr(x.varIndexes) },
           ${ Expr(x.constIndexes) },
           ${ Expr(x.groupingIndexes) },
-          ${ Expr(x.aggOpInfos) }
+          ${ Expr(x.aggOpInfos) },
+          ${ Expr(x.groupingAtom) }
         )
       }
     }
@@ -156,8 +163,8 @@ class StagedSnippetCompiler(val storageManager: StorageManager)(using val jitOpt
 
       case DiffOp(children:_*) =>
         '{ $stagedSM.diff($stagedFns(0)($stagedSM), $stagedFns(1)($stagedSM)) }
-
-      case GroupingOp(child, gji) =>
+      
+      case GroupingOp(child, rId, k, gji) =>
         '{ $stagedSM.groupingHelper($stagedFns.head($stagedSM), ${ Expr(gji) }) }
 
       case DebugPeek(prefix, msg, children:_*) =>

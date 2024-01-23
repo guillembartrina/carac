@@ -1,8 +1,7 @@
 package datalog.execution
 
 import datalog.dsl.{Atom, Constant, Term, Variable}
-import datalog.execution.AggOpIndex
-import datalog.storage.{RelationId, StorageAggOp}
+import datalog.storage.RelationId
 
 import java.lang.constant.ConstantDescs.*
 import java.lang.constant.*
@@ -247,73 +246,6 @@ object BytecodeGenerator {
       emitCall(xb, hashMapCls, "update", classOf[Object], classOf[Object])
     }
   }
-
-  def emitProjIndexes(xb: CodeBuilder, value: Seq[(String, Constant)]): Unit =
-    emitSeq(xb, value.map(v => xxb => emitStringConstantTuple2(xxb, v)))
-
-  def emitPredicateTypeRelationIdTuple2(xb: CodeBuilder, t: (PredicateType, RelationId)): Unit =
-    emitNew(xb, classOf[(PredicateType, RelationId)], xxb =>
-      emitPredicateType(xxb, t._1)
-      emitInteger(xxb, t._2)
-    )
-  def emitDeps(xb: CodeBuilder, value: Seq[(PredicateType, RelationId)]): Unit =
-    emitSeq(xb, value.map(v => xxb => emitPredicateTypeRelationIdTuple2(xxb, v)))
-
-  def emitConstIndexes(xb: CodeBuilder, value: collection.mutable.Map[Int, Constant]): Unit =
-    emitMap(xb, value.toSeq, emitInteger, emitConstant)
-
-  def emitCxnElement(xb: CodeBuilder, value: collection.mutable.Map[Int, Seq[String]]): Unit =
-    emitMap(xb, value.toSeq, emitInteger, emitSeqString)
-
-  def emitCxns(xb: CodeBuilder, value: collection.mutable.Map[String, collection.mutable.Map[Int, Seq[String]]]): Unit =
-    emitMap(xb, value.toSeq, emitString, emitCxnElement)
-
-  def emitJoinIndexes(xb: CodeBuilder, value: JoinIndexes): Unit =
-    emitNew(xb, classOf[JoinIndexes], xxb =>
-      emitVarIndexes(xxb, value.varIndexes)
-      emitConstIndexes(xxb, value.constIndexes)
-      emitProjIndexes(xxb, value.projIndexes)
-      emitDeps(xxb, value.deps)
-//      emitArrayAtoms(xxb, value.atoms)
-      emitSeq(xb, value.atoms.map(a => xxb => emitAtom(xxb, a)))
-      emitCxns(xxb, value.cxns)
-      emitBool(xxb, value.edb))
-
-  def emitStorageAggOp(xb: CodeBuilder, sao: StorageAggOp): Unit =
-    val enumCompanionCls = classOf[StorageAggOp.type]
-    emitObject(xb, enumCompanionCls)
-    xb.constantInstruction(sao.ordinal)
-    emitCall(xb, enumCompanionCls, "fromOrdinal", classOf[Int])
-
-  def emitAggOpIndex(xb: CodeBuilder, aoi: AggOpIndex): Unit = aoi match {
-    case gv: AggOpIndex.GV =>
-      emitNew(xb, classOf[AggOpIndex.GV], xxb =>
-        emitInteger(xxb, gv.i)
-      )
-    case lv: AggOpIndex.LV =>
-      emitNew(xb, classOf[AggOpIndex.GV], xxb =>
-        emitInteger(xxb, lv.i)
-      )
-    case c: AggOpIndex.C =>
-      emitNew(xb, classOf[AggOpIndex.C], xxb =>
-        emitConstant(xxb, c.c)
-      )
-  }
-
-  def emitAggOpInfos(xb: CodeBuilder, value: Seq[(StorageAggOp, AggOpIndex)]): Unit =
-    emitSeq(xb, value.map(v => xxb =>
-      emitNew(xb, classOf[(StorageAggOp, AggOpIndex)], xxxb =>
-        emitStorageAggOp(xxxb, v._1)
-        emitAggOpIndex(xxxb, v._2)
-      )  
-    ))
-
-  def emitGroupingJoinIndexes(xb: CodeBuilder, value: GroupingJoinIndexes): Unit =
-    emitNew(xb, classOf[GroupingJoinIndexes], xxb =>
-      emitVarIndexes(xxb, value.varIndexes)
-      emitConstIndexes(xxb, value.constIndexes)
-      emitSeqInt(xxb, value.groupingIndexes)
-      emitAggOpInfos(xxb, value.aggOpInfos))
 
   val CD_BoxedUnit = clsDesc(classOf[scala.runtime.BoxedUnit])
 

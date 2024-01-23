@@ -58,6 +58,7 @@ trait StorageManager(val ns: NS) {
 
   // Helpers for grouping
   def groupingHelper(base: EDB, gji: GroupingJoinIndexes): EDB
+  def groupingHelper_withHash(base: EDB, rId: Int, hash: String, ghash: String): EDB
 
   def SPJU(rId: RelationId, keys: mutable.ArrayBuffer[JoinIndexes]): EDB
   def naiveSPJU(rId: RelationId, keys: mutable.ArrayBuffer[JoinIndexes]): EDB

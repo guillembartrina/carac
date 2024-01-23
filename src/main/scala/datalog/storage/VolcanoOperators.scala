@@ -4,7 +4,7 @@ import datalog.dsl.Constant
 import datalog.storage.CollectionsCasts.asCollectionsEDB
 import datalog.tools.Debug.debug
 
-import datalog.execution.{GroupingJoinIndexes, AggOpIndex}
+import datalog.execution.GroupingJoinIndexes
 import datalog.storage.StorageAggOp
 
 import scala.collection.mutable

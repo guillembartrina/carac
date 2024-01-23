@@ -1,7 +1,7 @@
 package datalog.storage
 
-import datalog.dsl.{Atom, Constant, Variable, GroupingAtom, AggOp}
-import datalog.execution.{AllIndexes, JoinIndexes, PredicateType, AggOpIndex, GroupingJoinIndexes}
+import datalog.dsl.{Atom, Constant, Variable, GroupingAtom}
+import datalog.execution.{AllIndexes, JoinIndexes, PredicateType, GroupingJoinIndexes}
 import datalog.storage.CollectionsCasts.*
 
 import scala.collection.{immutable, mutable}
@@ -204,6 +204,34 @@ class DefaultStorageManager(ns: NS = new NS()) extends CollectionsStorageManager
         )
   }
 
+  override def groupingHelper_withHash(baseEDB: EDB, rId: Int, hash: String, ghash: String): CollectionsEDB = {
+    val originalGji = allRulesAllIndexes(rId)(hash).groupingIndexes(ghash)
+
+    val base = asCollectionsEDB(baseEDB)
+    val filteredBase = base.filter(r => prefilter(originalGji.constIndexes, 0, r) && toJoin(originalGji.varIndexes, r, CollectionsRow(Seq()))).distinct()
+    if filteredBase.nonEmpty
+    then
+      val tmp = filteredBase(0)
+      val (getters, tpes) = originalGji.aggOpInfos.map{
+        case (StorageAggOp.COUNT, _, _) =>
+          ((_: CollectionsRow) => 1, 'i')
+        case (_, "v", i) =>
+          ((r: CollectionsRow) => r.apply(i.asInstanceOf[Int]), getType(tmp(i.asInstanceOf[Int]).asInstanceOf[StorageConstant]))
+        case (_, "c", c) =>
+          ((_: CollectionsRow) => c, getType(c))
+      }.unzip
+      val okgetters = (r: CollectionsRow) => CollectionsRow(getters.map(_.apply(r)))
+      val reducers = originalGji.aggOpInfos.map(_._1).zip(tpes).map(aggOps(_)(_))
+      val okreducers = (a: CollectionsRow, b: CollectionsRow) =>
+        CollectionsRow(a.wrapped.zip(b.wrapped).zip(reducers).map((x, y) => y.apply(x._1.asInstanceOf[StorageConstant], x._2.asInstanceOf[StorageConstant])))
+      val res = filteredBase.groupMapReduce(r => CollectionsRow(originalGji.groupingIndexes.map(r.apply)), okgetters, okreducers)
+
+      val ctans = res.wrapped.map(_.wrapped.drop(originalGji.groupingIndexes.length)).flatten.toSeq
+      addConstantsToDomain(ctans)
+      res
+    else getEmptyEDB()
+  }
+
   override def groupingHelper(baseEDB: EDB, gji: GroupingJoinIndexes): CollectionsEDB = {
     val base = asCollectionsEDB(baseEDB)
     val filteredBase = base.filter(r => prefilter(gji.constIndexes, 0, r) && toJoin(gji.varIndexes, r, CollectionsRow(Seq()))).distinct()
@@ -211,13 +239,11 @@ class DefaultStorageManager(ns: NS = new NS()) extends CollectionsStorageManager
     then
       val tmp = filteredBase(0)
       val (getters, tpes) = gji.aggOpInfos.map{
-        case (StorageAggOp.COUNT, _) =>
+        case (StorageAggOp.COUNT, _, _) =>
           ((_: CollectionsRow) => 1, 'i')
-        case (_, AggOpIndex.GV(i)) =>
-          ((r: CollectionsRow) => r.apply(i), getType(tmp(i).asInstanceOf[StorageConstant]))
-        case (_, AggOpIndex.LV(i)) =>
-          ((r: CollectionsRow) => r.apply(i), getType(tmp(i).asInstanceOf[StorageConstant]))
-        case (_, AggOpIndex.C(c)) =>
+        case (_, "v", i) =>
+          ((r: CollectionsRow) => r.apply(i.asInstanceOf[Int]), getType(tmp(i.asInstanceOf[Int]).asInstanceOf[StorageConstant]))
+        case (_, "c", c) =>
           ((_: CollectionsRow) => c, getType(c))
       }.unzip
       val okgetters = (r: CollectionsRow) => CollectionsRow(getters.map(_.apply(r)))

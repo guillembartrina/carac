@@ -15,16 +15,14 @@ enum PredicateType:
   case POSITIVE, NEGATED, GROUPING
 
 
-enum AggOpIndex:
-  case LV(i: Int)
-  case GV(i: Int)
-  case C(c: Constant)
-
 case class GroupingJoinIndexes(varIndexes: Seq[Seq[Int]],
                                constIndexes: mutable.Map[Int, Constant],
                                groupingIndexes: Seq[Int],
-                               aggOpInfos: Seq[(StorageAggOp, AggOpIndex)]
-                              )
+                               aggOpInfos: Seq[(StorageAggOp, String, Constant)],
+                               groupingAtom: GroupingAtom
+                              ) {
+  val hash: String = groupingAtom.hash
+}
 
 /**
  * Wrapper object for join keys for IDB rules
@@ -151,17 +149,16 @@ object JoinIndexes {
           ctans.map(_.swap).to(mutable.Map),
           gis,
           ga.ags.map(_._1).map(ao =>
-            val aoi = ao.t match
-              case v: Variable =>
-                val i = ga.gv.indexOf(v)
-                if i >= 0 then AggOpIndex.GV(gis(i)) else AggOpIndex.LV(vars.find(_._1 == v).get._2)
-              case c: Constant => AggOpIndex.C(c)
-            ao match
-              case AggOp.SUM(t) => (StorageAggOp.SUM, aoi)
-              case AggOp.COUNT(t) => (StorageAggOp.COUNT, aoi)
-              case AggOp.MIN(t) => (StorageAggOp.MIN, aoi)
-              case AggOp.MAX(t) => (StorageAggOp.MAX, aoi)
-          )
+            val sao = ao match
+              case AggOp.SUM(t) => StorageAggOp.SUM
+              case AggOp.COUNT(t) => StorageAggOp.COUNT
+              case AggOp.MIN(t) => StorageAggOp.MIN
+              case AggOp.MAX(t) => StorageAggOp.MAX
+            ao.t match
+              case v: Variable => (sao, "v", vars.find(_._1 == v).get._2)
+              case c: Constant => (sao, "c", c)
+          ),
+          ga
         )
       ).toMap
     )

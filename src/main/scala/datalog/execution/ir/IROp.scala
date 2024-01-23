@@ -332,14 +332,24 @@ case class DiffOp(override val children:IROp[EDB]*)(using JITOptions) extends IR
     storageManager.diff(children.head.run(storageManager), children(1).run(storageManager))
 }
 
-case class GroupingOp(child: IROp[EDB], var gji: GroupingJoinIndexes)(using JITOptions) extends IROp[EDB](child) {
+case class GroupingOp(child: IROp[EDB], rId: RelationId, var k: JoinIndexes, var gji: GroupingJoinIndexes)(using JITOptions) extends IROp[EDB](child) {
   val code: OpCode = OpCode.GROUPING
 
   override def run(storageManager: StorageManager): EDB =
-    storageManager.groupingHelper(child.run(storageManager), gji)
+    storageManager.groupingHelper_withHash(
+      child.run(storageManager),
+      rId,
+      k.hash,
+      gji.hash
+    )
 
   override def run_continuation(storageManager: StorageManager, opFns: Seq[CompiledFn[EDB]]): EDB =
-    storageManager.groupingHelper(opFns(0)(storageManager), gji)
+    storageManager.groupingHelper_withHash(
+      opFns(0)(storageManager),
+      rId,
+      k.hash,
+      gji.hash
+    )
 }
 
 case class DebugNode(prefix: String, dbg: () => String)(using JITOptions) extends IROp[Any] {

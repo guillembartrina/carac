@@ -69,7 +69,7 @@ enum AggOp(val t: Term):
 case class GroupingAtom(gp: Atom, gv: Seq[Variable], ags: Seq[(AggOp, Variable)])
   extends Atom(gp.rId, gv ++ ags.map(_._2), false):
     // We set the relation id of the grouping predicate because the 'virtual' relation will be computed from it and also because we need it to be so for certain logic: dep in JoinIndexes, node id in DependencyGraph, etc.
-    override val hash: String = s"GB${gp.hash}-${gv.mkString("", "", "")}-${ags.mkString("", "", "")}"
+    override val hash: String = s"G@${gp.hash}-${gv.mkString("", "", "")}-${ags.mkString("", "", "")}"
 
 object groupBy:
   def apply(gp: Atom, gv: Seq[Variable], ags: (AggOp, Variable)*): GroupingAtom =
